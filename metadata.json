@@ -1,0 +1,7 @@
+{
+  "name": "Photo Coloring AI",
+  "description": "Transform any photo into a beautiful coloring page using AI. Color digitally with professional tools or print your custom line art to color by hand. Powered by Gemini 2.5 for advanced image editing and conversion.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
