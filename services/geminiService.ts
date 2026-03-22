@@ -38,7 +38,7 @@ export const convertToLineArt = async (
   format: OutputFormat = 'raster',
   usePro: boolean = false
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const mimeType = base64Image.split(';')[0].split(':')[1];
   const base64Data = base64Image.split(',')[1];
 
@@ -112,7 +112,7 @@ export const convertToLineArt = async (
 };
 
 export const upscaleToStudioMaster = async (base64Artwork: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const mimeType = base64Artwork.split(';')[0].split(':')[1];
   const base64Data = base64Artwork.split(',')[1];
 
@@ -142,7 +142,7 @@ export const upscaleToStudioMaster = async (base64Artwork: string): Promise<stri
 };
 
 export const editWithAI = async (base64Image: string, prompt: string, usePro: boolean = false): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const mimeType = base64Image.split(';')[0].split(':')[1];
   const base64Data = base64Image.split(',')[1];
 
