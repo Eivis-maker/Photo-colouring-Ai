@@ -1,13 +1,26 @@
 
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
-export type ColoringStyle = 
-  | 'standard' | 'bold' | 'detailed' | 'cute' | 'vintage' | 'sketchy' | 'comic' 
+export type ColoringStyle =
+  | 'standard' | 'bold' | 'detailed' | 'cute' | 'vintage' | 'sketchy' | 'comic'
   | 'popart' | 'zentangle' | 'stencil' | 'minimalist' | 'blueprint'
   | 'bold_geometric' | 'bold_sticker' | 'detailed_micro' | 'detailed_textured';
 
 export type ImageResolution = '1K' | '2K' | '4K';
 export type OutputFormat = 'raster' | 'vector';
+
+// gemini-2.5-flash-image:
+//   - image input + image output, greitas ir pigus
+//   - pagrindinis modelis coloring page generavimui
+//
+// gemini-3-pro-image-preview:
+//   - aukštesnė kokybė, Pro/Enhanced mode
+//
+// gemini-2.5-flash:
+//   - text output only, SVG generavimui (pigiausias)
+const IMAGE_MODEL = 'gemini-2.5-flash-image';
+const IMAGE_MODEL_PRO = 'gemini-3-pro-image-preview';
+const TEXT_MODEL = 'gemini-2.5-flash';
 
 const STYLE_PROMPTS: Record<ColoringStyle, string> = {
   standard: "Transform this image into a clean, professional high-contrast black and white coloring book page. Use perfectly uniform solid black lines for outlines. Ensure the background is pure 100% white (#FFFFFF) with absolutely no shading, gradients, noise, or textures.",
@@ -32,42 +45,34 @@ const STYLE_PROMPTS: Record<ColoringStyle, string> = {
  * Converts an image to line art (Raster or Vector).
  */
 export const convertToLineArt = async (
-  base64Image: string, 
+  base64Image: string,
   style: ColoringStyle = 'standard',
   resolution: ImageResolution = '1K',
   format: OutputFormat = 'raster',
   usePro: boolean = false
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, apiVersion: 'v1beta' });
   const mimeType = base64Image.split(';')[0].split(':')[1];
   const base64Data = base64Image.split(',')[1];
-
   const stylePrompt = STYLE_PROMPTS[style] || STYLE_PROMPTS.standard;
-  
+
   if (format === 'vector') {
-    const strokeWidthHint = resolution === '4K' ? '0.5' : resolution === '2K' ? '1.0' : '2.0';
-    
+    // Vector = SVG text output — nereikia image generation modelio, žymiai pigiau
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: TEXT_MODEL,
       contents: [
         {
           parts: [
             { inlineData: { mimeType, data: base64Data } },
-            { text: `${stylePrompt} 
-            
-            VECTOR STUDIO PROTOCOL:
-            1. Output: Generate only valid SVG XML.
-            2. Precision: Use high-precision coordinates.
-            3. Aesthetic: Solid #000000 strokes, NO fills.
-            4. Line Fidelity: Use stroke-width="${strokeWidthHint}" for master clarity.
-            5. Geometry: Simplify paths into smooth, continuous curves. Remove any digital noise or jagged edges.
-            6. Purity: Return ONLY the raw <svg>...</svg> block.` }
+            { text: `${stylePrompt}
+
+OUTPUT REQUIREMENTS:
+1. Generate only valid SVG XML.
+2. Use #000000 strokes only, no fills except white background.
+3. Return ONLY the raw <svg>...</svg> block, no markdown fences.` }
           ]
         }
       ],
-      config: {
-        thinkingConfig: { thinkingBudget: 12000 }
-      }
     });
 
     const svgCode = response.text?.trim() || '';
@@ -75,60 +80,18 @@ export const convertToLineArt = async (
     return `data:image/svg+xml;base64,${btoa(cleanSvg)}`;
   }
 
-  const isHighRes = resolution === '2K' || resolution === '4K';
-  const modelName = (usePro || isHighRes) ? 'gemini-3-pro-image-preview' : 'gemini-3-flash-preview';
-
-  const qualityInstruction = ` 
-    ULTRA-HD RECONSTRUCTION PROTOCOL:
-    - Eliminate all aliasing. Lines must be crisp vector-like raster output.
-    - Zero gray pixels. Output must be binary black (#000000) and white (#FFFFFF).
-    - Enhance subject structural integrity. Repair broken lines from the source image.
-    - Professional illustration standards for 300DPI printing.
-  `;
-
-  const response: GenerateContentResponse = await ai.models.generateContent({
-    model: modelName,
+  // Raster = image output
+  const model = usePro ? IMAGE_MODEL_PRO : IMAGE_MODEL;
+  const response = await ai.models.generateContent({
+    model,
     contents: {
       parts: [
         { inlineData: { mimeType, data: base64Data } },
-        { text: stylePrompt + qualityInstruction + " Treat this as a 4K resolution professional art reconstruction." },
-      ],
-    },
-    config: (modelName === 'gemini-3-pro-image-preview' || modelName === 'gemini-3-flash-preview') ? {
-      imageConfig: {
-        aspectRatio: "1:1",
-        imageSize: resolution
-      }
-    } : undefined
-  });
-
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-    }
-  }
-
-  throw new Error("Failed to generate line art");
-};
-
-export const upscaleToStudioMaster = async (base64Artwork: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const mimeType = base64Artwork.split(';')[0].split(':')[1];
-  const base64Data = base64Artwork.split(',')[1];
-
-  const response: GenerateContentResponse = await ai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
-    contents: {
-      parts: [
-        { inlineData: { mimeType, data: base64Data } },
-        { text: "ULTRA-HD 4K STUDIO MASTERING: Reconstruct this artwork at 4096x4096px resolution. Perform complete super-resolution noise removal. Ensure lines are mathematically smooth and pigments are perfectly uniform. The final result must look like a professional gallery-grade physical print." },
+        { text: stylePrompt + ' STRICT REQUIREMENTS: The output MUST be strictly black and white only. Use ONLY pure black (#000000) for all lines and ONLY pure white (#FFFFFF) for all backgrounds and empty areas. NO colors, NO brown, NO gray, NO sepia, NO shading, NO gradients anywhere in the image. Every pixel must be either pure black or pure white. This is for a printable children\'s coloring book page.' },
       ],
     },
     config: {
-      imageConfig: {
-        aspectRatio: "1:1",
-        imageSize: "4K"
-      }
+      responseModalities: ['IMAGE'],
     }
   });
 
@@ -138,24 +101,52 @@ export const upscaleToStudioMaster = async (base64Artwork: string): Promise<stri
     }
   }
 
-  throw new Error("Failed to master image in 4K");
+  throw new Error("Failed to generate coloring page");
 };
 
-export const editWithAI = async (base64Image: string, prompt: string, usePro: boolean = false): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const mimeType = base64Image.split(';')[0].split(':')[1];
-  const base64Data = base64Image.split(',')[1];
+export const upscaleToStudioMaster = async (base64Artwork: string): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, apiVersion: 'v1beta' });
+  const mimeType = base64Artwork.split(';')[0].split(':')[1];
+  const base64Data = base64Artwork.split(',')[1];
 
-  const modelName = usePro ? 'gemini-3-pro-image-preview' : 'gemini-3-flash-preview';
-
-  const response: GenerateContentResponse = await ai.models.generateContent({
-    model: modelName,
+  const response = await ai.models.generateContent({
+    model: IMAGE_MODEL_PRO,
     contents: {
       parts: [
         { inlineData: { mimeType, data: base64Data } },
-        { text: `PROFESSIONAL ART EDIT: ${prompt}. Maintain absolute line fidelity and 4K resolution quality.` },
+        { text: "Enhance this coloring page. Clean up all lines, ensure pure black (#000000) on pure white (#FFFFFF), remove any gray or noise. Maximize sharpness and clarity for printing." },
       ],
     },
+    config: {
+      responseModalities: ['IMAGE'],
+    }
+  });
+
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData) {
+      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    }
+  }
+
+  throw new Error("Failed to enhance image");
+};
+
+export const editWithAI = async (base64Image: string, prompt: string, usePro: boolean = false): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, apiVersion: 'v1beta' });
+  const mimeType = base64Image.split(';')[0].split(':')[1];
+  const base64Data = base64Image.split(',')[1];
+
+  const response = await ai.models.generateContent({
+    model: usePro ? IMAGE_MODEL_PRO : IMAGE_MODEL,
+    contents: {
+      parts: [
+        { inlineData: { mimeType, data: base64Data } },
+        { text: `Edit this coloring page: ${prompt}. Keep the style as black lines on white background.` },
+      ],
+    },
+    config: {
+      responseModalities: ['IMAGE'],
+    }
   });
 
   for (const part of response.candidates?.[0]?.content?.parts || []) {

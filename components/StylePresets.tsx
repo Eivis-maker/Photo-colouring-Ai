@@ -124,7 +124,7 @@ export const StylePresets: React.FC<StylePresetsProps> = ({
 
       <div className="grid grid-cols-1 gap-2 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
         {presets.length === 0 && !isAdding && (
-          <div className="text-[10px] text-slate-400 italic text-center py-4 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+          <div className="text-[10px] text-slate-500 italic text-center py-4 bg-white/5 rounded-xl border border-dashed border-white/10">
             No saved styles yet
           </div>
         )}
