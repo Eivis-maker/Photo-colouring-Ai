@@ -1,6 +1,6 @@
 
-import React, { useRef, useEffect, useState } from 'react';
-import { X, Camera, RefreshCw, Loader2, Sparkles, Wand2, Star, Heart, Layers, History, Pencil, Zap, Palette, Scroll, Grid3X3, Shapes, Box, Scissors, Ruler, Cpu, Move, ZapOff, Fingerprint, Activity } from 'lucide-react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { X, Camera, RefreshCw, Sparkles, Star, Heart, Pencil, Zap, Palette, Scroll, Grid3X3, Shapes, Box, Scissors, Ruler, Cpu, Fingerprint, Timer, FlipHorizontal } from 'lucide-react';
 import { ColoringStyle, OutputFormat } from '../services/geminiService';
 
 interface CameraModalProps {
@@ -40,46 +40,73 @@ const UPGRADES: UpgradeItem[] = [
 export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose, format }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const isVector = format === 'vector';
 
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    const startCamera = async () => {
-      try {
-        setIsLoading(true);
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, 
-          audio: false 
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        setIsLoading(false);
-      } catch (err) {
-        setError("Camera access denied.");
-        setIsLoading(false);
-      }
-    };
-    if (!capturedImage) startCamera();
-    return () => stream?.getTracks().forEach(track => track.stop());
-  }, [capturedImage]);
+  const startCamera = useCallback(async (facing: 'environment' | 'user') => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    try {
+      setIsLoading(true);
+      setError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setIsLoading(false);
+    } catch {
+      setError("Camera access denied. Please allow camera in browser settings.");
+      setIsLoading(false);
+    }
+  }, []);
 
-  const handleSnap = () => {
+  useEffect(() => {
+    if (!capturedImage) startCamera(facingMode);
+    return () => streamRef.current?.getTracks().forEach(t => t.stop());
+  }, [capturedImage, facingMode, startCamera]);
+
+  const handleSnap = useCallback(() => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-      if (context) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        if (facingMode === 'user') {
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         setCapturedImage(canvas.toDataURL('image/jpeg'));
       }
     }
+  }, [facingMode]);
+
+  const handleTimerSnap = () => {
+    let count = 3;
+    setCountdown(count);
+    const interval = setInterval(() => {
+      count--;
+      if (count === 0) {
+        clearInterval(interval);
+        setCountdown(null);
+        handleSnap();
+      } else {
+        setCountdown(count);
+      }
+    }, 1000);
+  };
+
+  const handleFlip = () => {
+    setFacingMode(f => f === 'environment' ? 'user' : 'environment');
   };
 
   const categories: ('Vector Pro' | 'Technical' | 'Artistic')[] = isVector 
@@ -112,22 +139,59 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose, fo
             {error && <div className="p-8 text-center text-red-400 font-black">{error}</div>}
 
             {!capturedImage ? (
-              <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-cover ${isLoading || error ? 'hidden' : 'block'}`} />
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className={`w-full h-full object-cover ${isLoading || error ? 'hidden' : 'block'}`}
+                style={facingMode === 'user' ? { transform: 'scaleX(-1)' } : undefined}
+              />
             ) : (
               <img src={capturedImage} className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-500" alt="Captured" />
             )}
             <canvas ref={canvasRef} className="hidden" />
+
+            {/* Countdown overlay */}
+            {countdown !== null && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-30">
+                <span className="text-white font-black text-9xl animate-in zoom-in-50 duration-200 drop-shadow-2xl">
+                  {countdown}
+                </span>
+              </div>
+            )}
           </div>
 
           {!capturedImage && !error && !isLoading && (
-            <div className="p-6 md:p-10 flex justify-center items-center bg-gradient-to-t from-black/80 to-transparent absolute bottom-0 left-0 right-0">
+            <div className="p-6 md:p-8 flex justify-center items-center gap-5 bg-gradient-to-t from-black/80 to-transparent absolute bottom-0 left-0 right-0">
+              {/* Timer button */}
+              <button
+                onClick={handleTimerSnap}
+                disabled={countdown !== null}
+                className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all disabled:opacity-40"
+                title="3 second timer"
+              >
+                <Timer className="w-5 h-5" />
+              </button>
+
+              {/* Snap button */}
               <button
                 onClick={handleSnap}
-                className="group w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-white flex items-center justify-center transition-all transform active:scale-90 hover:scale-105 shadow-xl"
+                disabled={countdown !== null}
+                className="group w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-white flex items-center justify-center transition-all transform active:scale-90 hover:scale-105 shadow-xl disabled:opacity-40"
               >
                 <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center">
-                    <Camera className="w-6 h-6 md:w-8 md:h-8 text-slate-900" />
+                  <Camera className="w-6 h-6 md:w-8 md:h-8 text-slate-900" />
                 </div>
+              </button>
+
+              {/* Flip camera */}
+              <button
+                onClick={handleFlip}
+                disabled={countdown !== null}
+                className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all disabled:opacity-40"
+                title="Flip camera"
+              >
+                <FlipHorizontal className="w-5 h-5" />
               </button>
             </div>
           )}
