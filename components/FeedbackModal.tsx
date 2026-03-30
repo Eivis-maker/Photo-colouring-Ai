@@ -1,19 +1,48 @@
 
 import React, { useState } from 'react';
-import { ThumbsUp, ThumbsDown, X } from 'lucide-react';
+import { X, Star } from 'lucide-react';
 import { track } from '../services/analytics';
+
+const FORM_ID = '1FAIpQLSd2e84811m7SPswgDMFLIJ0OWjW7dzVM_3xcU7uYck04ViSLw';
+const ENTRY_RATING  = 'entry.2077966667';
+const ENTRY_COMMENT = 'entry.1861786847';
+const ENTRY_SESSION = 'entry.1057610432';
+
+function getSessionId() {
+  let id = sessionStorage.getItem('colorpage_session');
+  if (!id) { id = crypto.randomUUID(); sessionStorage.setItem('colorpage_session', id); }
+  return id;
+}
 
 interface FeedbackModalProps {
   onClose: () => void;
 }
 
 export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
-  const [rating, setRating] = useState<'up' | 'down' | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<number | null>(null);
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = () => {
+    if (!rating) return;
+
     track('feedback_submitted', { rating, comment: comment.trim() || undefined });
+
+    // Submit silently to Google Forms
+    const body = new URLSearchParams({
+      [ENTRY_RATING]:  String(rating),
+      [ENTRY_COMMENT]: comment.trim(),
+      [ENTRY_SESSION]: getSessionId(),
+    });
+
+    fetch(`https://docs.google.com/forms/d/e/${FORM_ID}/formResponse`, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    }).catch(() => {});
+
     setSubmitted(true);
     setTimeout(onClose, 1800);
   };
@@ -23,9 +52,11 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
     onClose();
   };
 
+  const displayRating = hovered ?? rating;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-white/10 p-6 rounded-[2rem] w-full max-w-sm shadow-2xl space-y-5 animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+      <div className="bg-slate-900 border border-white/10 p-6 rounded-[2rem] w-full max-w-sm shadow-2xl space-y-5 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
         {submitted ? (
           <div className="text-center py-4 space-y-2">
             <div className="text-3xl">🎉</div>
@@ -43,26 +74,28 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
               </button>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setRating('up')}
-                className={`flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all ${rating === 'up' ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-400' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
-              >
-                <ThumbsUp className="w-6 h-6" />
-                <span className="text-[10px] font-black uppercase tracking-wide">Looks great</span>
-              </button>
-              <button
-                onClick={() => setRating('down')}
-                className={`flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all ${rating === 'down' ? 'bg-red-500/20 border-red-500/60 text-red-400' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
-              >
-                <ThumbsDown className="w-6 h-6" />
-                <span className="text-[10px] font-black uppercase tracking-wide">Needs work</span>
-              </button>
+            {/* 5 star rating */}
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setRating(star)}
+                  onMouseEnter={() => setHovered(star)}
+                  onMouseLeave={() => setHovered(null)}
+                  className="p-1 transition-transform hover:scale-110 active:scale-95"
+                >
+                  <Star
+                    className="w-8 h-8 transition-colors"
+                    fill={displayRating !== null && star <= displayRating ? '#f59e0b' : 'transparent'}
+                    stroke={displayRating !== null && star <= displayRating ? '#f59e0b' : '#475569'}
+                  />
+                </button>
+              ))}
             </div>
 
             {rating && (
               <textarea
-                placeholder={rating === 'down' ? 'What could be better? (optional)' : 'Anything else to say? (optional)'}
+                placeholder={rating <= 2 ? 'What could be better? (optional)' : 'Anything else to say? (optional)'}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 className="w-full text-xs p-3 rounded-xl bg-black/40 border border-white/10 h-20 resize-none focus:ring-1 focus:ring-indigo-500 outline-none placeholder:text-slate-600 text-white animate-in fade-in duration-150"

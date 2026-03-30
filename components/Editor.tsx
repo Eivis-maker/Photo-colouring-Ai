@@ -612,7 +612,7 @@ export const Editor: React.FC<EditorProps> = ({
       )}
 
       {/* FIXED POSITIONING: Increased bottom distance on mobile to clear the app footer */}
-      <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 md:gap-5 bg-slate-900/95 backdrop-blur-xl border border-white/10 px-4 md:px-6 py-2 md:py-2.5 rounded-2xl shadow-2xl z-50 scale-90 sm:scale-100">
+      <div className="absolute bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 md:gap-5 bg-slate-900/95 backdrop-blur-xl border border-white/10 px-4 md:px-6 py-2 md:py-2.5 rounded-2xl shadow-2xl z-50 scale-90 sm:scale-100">
         <button onClick={(e) => { e.stopPropagation(); handleZoomBtn(0.8); }} className="p-1.5 text-white hover:text-indigo-300 transition-colors" title="Zoom out"><ZoomOut className="w-5 h-5 md:w-4 md:h-4" /></button>
         <span className="text-[10px] md:text-[9px] font-black text-indigo-400 w-10 text-center">{Math.round(view.scale * 100)}%</span>
         <button onClick={(e) => { e.stopPropagation(); handleZoomBtn(1.25); }} className="p-1.5 text-white hover:text-indigo-300 transition-colors" title="Zoom in"><ZoomIn className="w-5 h-5 md:w-4 md:h-4" /></button>
