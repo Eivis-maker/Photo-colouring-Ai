@@ -15,6 +15,7 @@ import { convertToLineArt, editWithAI, upscaleToStudioMaster, ColoringStyle, Ima
 import { track } from './services/analytics';
 import { FeedbackModal } from './components/FeedbackModal';
 import { Toast } from './components/Toast';
+import { LandingPage } from './components/LandingPage';
 import { ToolType } from './types';
 
 const BRUSH_PRESETS = [
@@ -49,6 +50,7 @@ const App: React.FC = () => {
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
   const [showFeedback, setShowFeedback] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [basicStyle, setBasicStyle] = useState<'simple' | 'standard' | 'detailed'>('standard');
@@ -207,6 +209,15 @@ const App: React.FC = () => {
       setResolution('2K');
     }
   };
+
+  if (showLanding) {
+    return (
+      <LandingPage
+        onUpload={() => { setShowLanding(false); track('upload_click'); setTimeout(() => fileInputRef.current?.click(), 100); }}
+        onDemo={() => { setShowLanding(false); track('demo_opened'); setShowDemoModal(true); }}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-[#020617] text-slate-100 overflow-hidden font-sans selection:bg-indigo-500/30">
