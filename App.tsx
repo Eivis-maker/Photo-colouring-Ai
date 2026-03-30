@@ -86,24 +86,31 @@ const App: React.FC = () => {
     }
   };
 
-  const DEMO_EMOJIS = ['🦁', '🐱', '🌸', '🦋', '🐘', '🦄', '🐶', '🦊', '🐸', '🌵', '🦀', '🐬'];
+  // Failai turi būti: public/demo/drawing1.jpg, drawing2.jpg, ...
+  const DEMO_IMAGES = [
+    { file: '/demo/drawing1.jpg', label: 'Drawing 1' },
+    { file: '/demo/drawing2.jpg', label: 'Drawing 2' },
+    { file: '/demo/drawing3.jpg', label: 'Drawing 3' },
+    { file: '/demo/drawing4.jpg', label: 'Drawing 4' },
+    { file: '/demo/drawing5.jpg', label: 'Drawing 5' },
+    { file: '/demo/drawing6.jpg', label: 'Drawing 6' },
+  ];
 
-  const handleDemoSelect = (emoji: string) => {
+  const handleDemoSelect = (file: string) => {
     setShowDemoModal(false);
     setShowHelp(false);
-    track('demo_emoji_selected', { emoji });
-    const size = 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, size, size);
-    ctx.font = `${size * 0.7}px serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, size / 2, size / 2);
-    processImage(canvas.toDataURL('image/png'));
+    track('demo_emoji_selected', { file });
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      processImage(canvas.toDataURL('image/jpeg'));
+    };
+    img.src = file;
   };
 
   const handleError = async (error: unknown) => {
@@ -237,14 +244,19 @@ const App: React.FC = () => {
               <h2 className="text-2xl font-black tracking-tight">Pick an emoji</h2>
               <p className="text-slate-500 text-sm">We'll turn it into a coloring page.</p>
             </div>
-            <div className="grid grid-cols-4 gap-3">
-              {DEMO_EMOJIS.map(emoji => (
+            <div className="grid grid-cols-3 gap-3">
+              {DEMO_IMAGES.map(({ file, label }) => (
                 <button
-                  key={emoji}
-                  onClick={() => handleDemoSelect(emoji)}
-                  className="text-4xl h-16 flex items-center justify-center rounded-2xl bg-white/5 hover:bg-indigo-500/20 hover:scale-110 transition-all border border-white/5 hover:border-indigo-500/40"
+                  key={file}
+                  onClick={() => handleDemoSelect(file)}
+                  className="aspect-square rounded-2xl overflow-hidden bg-white/5 hover:scale-105 hover:ring-2 hover:ring-indigo-500 transition-all border border-white/10"
                 >
-                  {emoji}
+                  <img
+                    src={file}
+                    alt={label}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
                 </button>
               ))}
             </div>
