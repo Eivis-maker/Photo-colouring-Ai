@@ -44,7 +44,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
     }).catch(() => {});
 
     setSubmitted(true);
-    setTimeout(onClose, 1800);
+    setTimeout(onClose, 1200);
   };
 
   const handleDismiss = () => {

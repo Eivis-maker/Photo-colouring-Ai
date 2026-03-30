@@ -646,6 +646,25 @@ const App: React.FC = () => {
         {/* Mobile bottom action bar */}
         {image && (
           <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-slate-950/98 backdrop-blur-xl border-t border-white/10 px-3 py-2 flex items-center gap-2 safe-bottom">
+            {/* Color dot — opens sidebar */}
+            {!showOriginal && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="shrink-0 w-9 h-9 rounded-xl border-2 border-white/20 shadow-lg"
+                style={{ backgroundColor: brushColor }}
+                title="Change color"
+              />
+            )}
+            {/* Draw toggle */}
+            {!showOriginal && (
+              <button
+                onClick={() => setActiveTool(activeTool === ToolType.PAN ? ToolType.BRUSH : ToolType.PAN)}
+                className={`shrink-0 p-2.5 rounded-xl border transition-all ${activeTool !== ToolType.PAN ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-white/5 border-white/10 text-slate-400'}`}
+                title={activeTool !== ToolType.PAN ? 'Drawing ON' : 'Drawing OFF'}
+              >
+                <Paintbrush className="w-4 h-4" />
+              </button>
+            )}
             {/* Before/After */}
             {originalImage && (
               <div className="flex bg-white/5 border border-white/10 rounded-lg p-0.5 shrink-0">
@@ -655,7 +674,6 @@ const App: React.FC = () => {
             )}
             {/* Undo / Redo */}
             <button onClick={() => (window as any).undo?.()} disabled={!canUndo || showOriginal} className="p-2.5 rounded-xl bg-white/5 text-white disabled:opacity-20 border border-white/5 shrink-0"><Undo className="w-4 h-4" /></button>
-            <button onClick={() => (window as any).redo?.()} disabled={!canRedo || showOriginal} className="p-2.5 rounded-xl bg-white/5 text-white disabled:opacity-20 border border-white/5 shrink-0"><Redo className="w-4 h-4" /></button>
             <div className="flex-1" />
             {/* Download + Print */}
             <button onClick={() => { track('jpg_download_clicked'); triggerFeedback(); downloadJPG(); }} className="flex items-center gap-1.5 px-3 py-2.5 bg-white/5 text-white border border-white/5 rounded-xl font-black text-[9px] uppercase tracking-wide shrink-0"><Download className="w-3.5 h-3.5" />Save</button>
