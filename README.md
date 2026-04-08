@@ -8,6 +8,10 @@ This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/61b9506e-beb0-4ce3-b498-323ec5f134fd
 
+## Notes
+
+Filenames in this repository have been normalised for Windows compatibility: colons (`:`) in timestamp-based filenames inside `migrated_prompt_history/` have been replaced with hyphens (`-`) so that `git clone` succeeds on Windows without checkout errors.
+
 ## Run Locally
 
 **Prerequisites:**  Node.js
